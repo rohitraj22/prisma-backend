@@ -2,9 +2,11 @@
 
 FastAPI + MongoDB backend for serving the latest factsheet snapshot of the **Spring Street Prisma** fund.
 
-The project has two main parts:
-- `etl.py`: fetches live market data with `yfinance`, builds a daily snapshot, and upserts it into MongoDB.
-- `main.py`: exposes a REST API to retrieve the latest factsheet snapshot for a fund.
+This repository has two runtime components:
+- `etl.py` - pulls live market data, computes snapshot metrics (NAV + exposures), and stores the result in MongoDB
+- `main.py` - serves REST endpoints that read the latest snapshot for a fund
+
+---
 
 ## Tech Stack
 
@@ -16,13 +18,34 @@ The project has two main parts:
 - PyMongo
 - yfinance
 
+## Architecture and Approach
+
+This project follows a simple ETL + API read model:
+
+1. **Extract + Transform (`etl.py`)**
+   - Fetches latest close prices using `yfinance` for a fixed holdings basket
+   - Pulls metadata per ticker (sector, country, display name)
+   - Computes weighted NAV and aggregate exposure percentages
+
+2. **Load (`etl.py`)**
+   - Writes to MongoDB database `spring_street`, collection `factsheet_snapshots`
+   - Uses upsert on `{ fund_id, date }` so rerunning ETL for the same day updates existing data instead of duplicating
+
+3. **Serve (`main.py`)**
+   - FastAPI endpoint reads the latest document by sorting snapshots by `date` descending
+   - Returns `404` when no factsheet exists for the requested fund
+
 ## Prerequisites
 
 - Python 3.9+
 - MongoDB running locally at `mongodb://localhost:27017/`
 - Internet access (required by `yfinance` in the ETL job)
 
-## Setup
+## Environment Variables and Configuration
+
+There are **no required environment variables** in the current implementation (since it's local)
+
+## Setup (Step-by-Step)
 
 1. Clone the repository:
 
@@ -73,6 +96,14 @@ uvicorn main:app --reload
 Default URL:
 - API: `http://127.0.0.1:8000`
 - Swagger UI: `http://127.0.0.1:8000/docs`
+
+## Validation Checklist
+
+After setup, confirm all 3 checks pass:
+
+1. `python etl.py` completes without errors
+2. `http://127.0.0.1:8000/docs` opens Swagger UI
+3. `GET /api/v1/funds/global-growth-prisma/factsheet/latest` returns `200` with JSON payload
 
 ## API Endpoints
 
