@@ -2,9 +2,15 @@ import yfinance as yf
 from pymongo import MongoClient
 from datetime import datetime, timezone
 import pandas as pd
+import os
+from dotenv import load_dotenv
 
-# Initialize MongoDB Connection
-client = MongoClient("mongodb://localhost:27017/")
+# Load environment variables from .env file
+load_dotenv()
+
+# Read URI from environment
+MONGO_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/")
+client = MongoClient(MONGO_URI)
 db = client["spring_street"]
 snapshots_collection = db["factsheet_snapshots"]
 

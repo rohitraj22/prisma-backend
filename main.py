@@ -2,11 +2,19 @@ from fastapi import FastAPI, HTTPException
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
 from typing import List, Dict
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+from etl import generate_daily_snapshot 
 
 app = FastAPI(title="Spring Street Prisma API")
 
-# Connect to MongoDB asynchronously
-client = AsyncIOMotorClient("mongodb://localhost:27017/")
+# Read URI from environment (Render dashboard in production, .env file locally)
+MONGO_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/")
+client = AsyncIOMotorClient(MONGO_URI)
 db = client["spring_street"]
 
 # Pydantic models for Swagger UI documentation
