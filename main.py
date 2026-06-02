@@ -5,19 +5,17 @@ from typing import List, Dict
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
-
+# Import your ETL function so the API can trigger it
 from etl import generate_daily_snapshot 
+
+load_dotenv()
 
 app = FastAPI(title="Spring Street Prisma API")
 
-# Read URI from environment (Render dashboard in production, .env file locally)
 MONGO_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/")
 client = AsyncIOMotorClient(MONGO_URI)
 db = client["spring_street"]
 
-# Pydantic models for Swagger UI documentation
 class ExposureItem(BaseModel):
     name: str
     weight: float
@@ -43,7 +41,6 @@ async def get_latest_factsheet(fund_id: str):
     """
     Fetches the most recent factsheet data for a specific fund to populate the UI.
     """
-    # Sort by date descending (-1) to grab the newest snapshot
     document = await db["factsheet_snapshots"].find_one(
         {"fund_id": fund_id},
         sort=[("date", -1)]
@@ -52,6 +49,18 @@ async def get_latest_factsheet(fund_id: str):
     if not document:
         raise HTTPException(status_code=404, detail="Factsheet not found for this fund")
         
-    # Remove the internal MongoDB ObjectId before returning
     document.pop("_id", None)
     return document
+
+# --- ADD THIS MISSING ADMIN SECTION ---
+@app.post("/api/v1/admin/run-etl", tags=["Admin"])
+async def trigger_etl():
+    """
+    Manually triggers the ETL pipeline to fetch live Yahoo Finance data 
+    and populate the MongoDB Atlas database.
+    """
+    try:
+        generate_daily_snapshot()
+        return {"status": "success", "message": "ETL pipeline executed successfully and data saved to Atlas."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ETL failed: {str(e)}")
