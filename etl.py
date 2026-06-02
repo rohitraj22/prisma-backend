@@ -75,14 +75,15 @@ def generate_daily_snapshot():
     snapshot_document = {
         "fund_id": FUND_ID,
         "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-        "nav": round(calculated_nav, 2), # Insert the dynamically calculated NAV
+        "updated_at": datetime.now(timezone.utc).isoformat(), # <--- ADD THIS LINE
+        "nav": round(calculated_nav, 2),
         "exposures": {
             "sectors": [{"name": k, "weight": round(v * 100, 2)} for k, v in sector_exposure.items()],
             "geography": [{"name": k, "weight": round(v * 100, 2)} for k, v in country_exposure.items()]
         },
         "top_holdings": sorted(top_holdings, key=lambda x: x["weight"], reverse=True)
     }
-
+    
     # Upsert into MongoDB
     snapshots_collection.update_one(
         {"fund_id": FUND_ID, "date": snapshot_document["date"]},
